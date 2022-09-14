@@ -27,7 +27,7 @@ set satlog=N
 rem setup
 if exist ..\srlogSettings.cmd call ..\srlogsettings.cmd
 if "%satlog%"=="Y" (
-    set Satellite=[93mSATELLITE
+    set Satellite=[93mSatellite
     set SatColor=[7m
 )
 if "%callsign%"=="" (
@@ -40,7 +40,6 @@ if "%callsign%"=="" (
 if "%gridsquare%"=="" (
     set gridsquare=%tsquare%
     echo Please enter your gridsquare or press enter for %tsquare%:
-    set
     set /p gridsquare=">"
     call :savesettings
 )
@@ -83,7 +82,7 @@ echo  [96m[ENTER] to save below log entry[0m ^| Welcome to SRCOM Logger ^| Use
 call :rangeband
 echo [90m-Key----Description-----------VALUE--------------------------------------------------------------[0m
 rem  ----------------------------------------------------------------------------------------------
-echo  0 F Frequency / Mode: [97m%Freq%[0m %modecolor%%mode%[0m %satellite%[0m
+echo  0 F Frequency / Mode: [97m%Freq%[0m %modecolor%%mode%[0m %Satellite%[0m
 if "%tcall%"=="" (
     echo  1 C   Their Callsign:
     goto skipcsq
@@ -196,7 +195,7 @@ if %errorlevel%==61 (
         call :savesettings
         goto mainmenu
     ) ELSE (
-        set Satellite=[93mSATELLITE
+        set Satellite=[93mSatellite
         set SatColor=[7m
         set satlog=Y
         call :savesettings
@@ -720,7 +719,7 @@ echo 4    FREQUENCY: [7m!pfreq! MHz [0;90m(!pband!)[0m
 echo 5         MODE: [95m!pmode![0m
 echo 6         RSTs: !prsts!
 echo 7         RSTr: !prstr!
-echo 8    SATELLITE: !psatt!
+echo 8    Satellite: !psatt!
 echo 9 CONTEST DATA: SERIAL: !pserl! - CLASS: !pclass! - STATE: !pstate!
 echo 0         NOTE: [7m!pnote![0m
 echo R          Rig: !prig!
@@ -1680,7 +1679,7 @@ echo set "op=!op!">>%settingslocation%
 echo set "freq=!freq!">>%settingslocation%
 echo set "license=!license!">>%settingslocation%
 echo set "mode=!mode!">>%settingslocation%
-echo set "Sattelite=!satellite!">>%settingslocation%
+echo set "Sattelite=!Satellite!">>%settingslocation%
 echo set "satlog=!satlog!">>%settingslocation%
 echo set "rig=!rig!">>%settingslocation%
 echo set "searchlogcommand=!searchlogcommand!">>%settingslocation%
