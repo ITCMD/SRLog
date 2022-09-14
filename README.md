@@ -16,7 +16,7 @@ functionality in mind. SRLog is open source and allows the following logging:
 
 - 160m-23cm band logging support
 - Contest support, including Field Day
-- Satellite Contact Support
+- Sattellite Contact Support
 - Automatic hamdb pulling for names and QTH (toggleable)
 - Automatic UTC Time
 - Auto-Filled RST reports
@@ -40,8 +40,8 @@ Here are some tips and tricks for using the software:
 
 - Avoid using special characters in notes and names as they can mess with the program
 
-- Notes, Contest data, and Satellite mode is indicated under "SPEC" in the log list.
-  S indicates Satellite work, C indicates contest data (State, Class, or Serial),
+- Notes, Contest data, and Sattellite mode is indicated under "SPEC" in the log list.
+  S indicates Sattellite work, C indicates contest data (State, Class, or Serial),
   and an N indicates there is a note.
 
 - Exporting to ADIF can take a bit for long files.
