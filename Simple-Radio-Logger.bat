@@ -224,12 +224,13 @@ cls
 echo Select format to export current log in:
 echo.
 echo 1] ADIF
-echo 2] HamLog (SRLog Only)
 echo X] Cancel
 echo.
-choice /c 12x
+choice /c 1x
 if %errorlevel%==1 goto adifexport
 if %errorlevel%==3 goto mainmenu
+
+
 
 :adifexport
 cls
