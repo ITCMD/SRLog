@@ -2,6 +2,7 @@
 mode con:cols=97 lines=44
 setlocal EnableDelayedExpansion
 title SRLog - Simple Radio Logger by W1BTR
+rem version 1.2.beta
 cls
 if not exist kbd.exe (
     echo [91mERROR: [97mSRLogger depends on KBD.exe for navigation.
@@ -75,24 +76,31 @@ if "%license%"=="" (
     call :savesettings
 )
 if "%FLRig%"=="1" (
-    %rigctlcmd% get_freq | find /i "IO error" >nul 2>nul
+    %rigctlcmd% get_freq >nul 2>rigctlerror
+    find /i "error" "rigctlerror"
     if !errorlevel!==0 goto ErrorFLRig
+    del /f /q rigctlerror
 )
 call :setdatetime
 goto clear
 
 :ErrorFLRig
-
-
+cls
+echo [91mFLRig Error[90m
+type rigctlerror
+echo.
+echo [0mLaunch and configure FLRig and restart SRLog
+echo or press any key to disable FLRig
+pause
+set flrig=0
+set flrignow=0
+call :savesettings
+goto clear
 :mainmenu
 cls
 if exist "SearchList.*.temp" del "SearchList.*.temp"
 if "%flrig%"=="1" (
-    if "%FlrigNow%"=="1" (
-        echo  [92mF1[0m-View Logs [92mF2[0m-Export [92mF3[0m-%satcolor%Sattelite Mode[0m [92mF4[0m-Grid Square [92mF5[0m-Operator [92mF6[0m-License [92mF7[0m-More[0m [92mF8[0m-[102;30mFLRig[0m
-    ) ELSE (
-        echo  [92mF1[0m-View Logs [92mF2[0m-Export [92mF3[0m-%satcolor%Sattelite Mode[0m [92mF4[0m-Grid Square [92mF5[0m-Operator [92mF6[0m-License [92mF7[0m-More[0m [92mF8[0m-[103;30mFLRig[0m
-    )
+    echo  [92mF1[0m-View Logs [92mF2[0m-Export [92mF3[0m-%satcolor%Sattelite Mode[0m [92mF4[0m-Grid Square [92mF5[0m-Operator [92mF6[0m-License [92mF7[0m-More[0m [92mF8[0m-[102;30mFLRig[0m
 ) ELSE (
     echo  [92mF1[0m-View Logs [92mF2[0m-Export [92mF3[0m-%satcolor%Sattelite Mode[0m [92mF4[0m-Grid Square [92mF5[0m-Operator [92mF6[0m-License [92mF7[0m-More[0m [92mF8[0m-FLRig[0m
 )
@@ -168,7 +176,7 @@ if %errorlevel%==97 (
     call :setdatetime
     goto mainmenu
 )
-if %errorlevel%==79 cd ..&exit /b & exit /b
+if %errorlevel%==79 goto end
 if %errorlevel%==27 goto clear
 if %errorlevel%==48 goto freqmode
 if %errorlevel%==102 goto freqmode
@@ -279,6 +287,10 @@ goto mainmenu
 cls
 echo Power up your radio and make sure FLRig is running with your radio configured.
 pause
+%rigctlcmd% get_freq >nul 2>rigctlerror
+find /i "error" "rigctlerror"
+if !errorlevel!==0 goto ErrorFLRig
+del /f /q rigctlerror
 set FLRig=1
 cls
 echo [92mEnable FLRig Frequency pull?[0m
@@ -1858,6 +1870,10 @@ echo set "FLRigFreq=!FLRigFreq!">>%settingslocation%
 echo set "FLRigMode=!FLRigMode!">>%settingslocation%
 echo set "FLRigWatts=!FLRigWatts!">>%settingslocation%
 exit /b
+
+:end
+cd ..
+exit
 
 :getlength
 rem call :getlength VarofString ReturnVar
