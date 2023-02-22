@@ -3,7 +3,7 @@
   ____  ____  _     By W1BTR             
  / ___||  _ \| |    ___   __ _ 
  \___ \| |_) | |   / _ \ / _` |
-  ___) |  _ <| |__| (_) | (_| |           Beta Version 1.0 Public Release
+  ___) |  _ <| |__| (_) | (_| |           Beta Version 2.0 Public Release
  |____/|_| \_\_____\___/ \__, |
     Simple Radio Logger  |___/ 
 ```
