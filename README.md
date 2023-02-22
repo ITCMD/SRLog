@@ -3,12 +3,14 @@
   ____  ____  _     By W1BTR             
  / ___||  _ \| |    ___   __ _ 
  \___ \| |_) | |   / _ \ / _` |
-  ___) |  _ <| |__| (_) | (_| |           Beta Version 1.0 Public Release
+  ___) |  _ <| |__| (_) | (_| |           Beta Version 2.0 Public Release
  |____/|_| \_\_____\___/ \__, |
     Simple Radio Logger  |___/ 
 ```
     
 ![jpeiybH](https://user-images.githubusercontent.com/32961763/190240772-12fbe2f0-c832-40d4-9c80-f4f1fbdbfc6f.png)
+
+## NOW WITH AUTOMATIC FREQUENCY, MODE, AND POWER FROM FLRIG!
 
 Welcome to **SRLog** (Simple-Radio-Logger), a Windows logging software that comes as a part of the [SRCOM](https://github.com/ITCMD/srcom)
 software suite. This software is designed with simplicity, portability, and
@@ -26,6 +28,7 @@ functionality in mind. SRLog is open source and allows the following logging:
 - Automatically informs the user what their voice range is for their license
 - Can be run over SSH
 - One Keypress QRZ page opening
+- FLRig Integration for automatic frequency, mode, and power data
 
 SRLog does not use the mouse at all, and is designed to be rapidly navigated with
 the keyboard. It has an easy no-query mode for offline / quicker use.
