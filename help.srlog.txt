@@ -35,6 +35,8 @@ Here are some tips and tricks for using the software:
 
 - Avoid using special characters in notes and names as they can mess with the program
 
+- FLRig Mode only refreshes on clear.
+
 - Notes, Contest data, and Satellite mode is indicated under "SPEC" in the log list.
   S indicates Satellite work, C indicates contest data (State, Class, or Serial),
   and an N indicates there is a note.

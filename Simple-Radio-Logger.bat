@@ -11,12 +11,18 @@ if not exist kbd.exe (
 )
 if not exist Logs md Logs\
 cd Logs\
-rem defaults
+rem you can change this command to communicate directly with your rig without FLRig if you need to:
+set rigctlcmd=call "..\Hamlib\Bin\rigctl.exe" --model=4
+rem =======================================================
+rem defaults [These are all changable in the settings, do not change these values]
 set query=TRUE
 set rig=1
+set FLRig=0
+set FlrigNow=1
 set Logfile=001.hamlog
 set RSTD=59
-set Freq=14.252
+set Freq=14.2520
+set Power=100
 set logsearchstat=Search All Logs in Log Folder
 set searchlogcommand=dir /b /s *.hamlog
 set mode=SSB
@@ -68,13 +74,28 @@ if "%license%"=="" (
     if !errorlevel!==10 set license=E
     call :savesettings
 )
+if "%FLRig%"=="1" (
+    %rigctlcmd% get_freq | find /i "IO error" >nul 2>nul
+    if !errorlevel!==0 goto ErrorFLRig
+)
 call :setdatetime
 goto clear
+
+:ErrorFLRig
+
 
 :mainmenu
 cls
 if exist "SearchList.*.temp" del "SearchList.*.temp"
-echo  [92mF1[0m-View Logs [92mF2[0m-Export [92mF3[0m-%satcolor%Sattelite Mode[0m [92mF4[0m-Grid Square [92mF5[0m-Operator [92mF6[0m-Change License [92mF7[0m-More[0m
+if "%flrig%"=="1" (
+    if "%FlrigNow%"=="1" (
+        echo  [92mF1[0m-View Logs [92mF2[0m-Export [92mF3[0m-%satcolor%Sattelite Mode[0m [92mF4[0m-Grid Square [92mF5[0m-Operator [92mF6[0m-License [92mF7[0m-More[0m [92mF8[0m-[102;30mFLRig[0m
+    ) ELSE (
+        echo  [92mF1[0m-View Logs [92mF2[0m-Export [92mF3[0m-%satcolor%Sattelite Mode[0m [92mF4[0m-Grid Square [92mF5[0m-Operator [92mF6[0m-License [92mF7[0m-More[0m [92mF8[0m-[103;30mFLRig[0m
+    )
+) ELSE (
+    echo  [92mF1[0m-View Logs [92mF2[0m-Export [92mF3[0m-%satcolor%Sattelite Mode[0m [92mF4[0m-Grid Square [92mF5[0m-Operator [92mF6[0m-License [92mF7[0m-More[0m [92mF8[0m-FLRig[0m
+)
 echo [90m-------------------------------------------------------------------------------------------------[0m
 call :showrecentlog
 echo [90m-------------------------------------------------------------------------------------------------[0m
@@ -82,7 +103,7 @@ echo  [96m[ENTER] to save below log entry[0m ^| Welcome to SRCOM Logger ^| Use
 call :rangeband
 echo [90m-Key----Description-----------VALUE--------------------------------------------------------------[0m
 rem  ----------------------------------------------------------------------------------------------
-echo  0 F Frequency / Mode: [97m%Freq%[0m %modecolor%%mode%[0m %Satellite%[0m
+echo  0 F Frequency / Mode: [97m%Freq%[0m %modecolor%%mode%[31m %power% Watts[0m %Satellite%[0m
 if "%tcall%"=="" (
     echo  1 C   Their Callsign:
     goto skipcsq
@@ -94,13 +115,15 @@ set prevcount=0
 set PrevTrigger=False
 set prev=
 rem dir /b /s *.hamlog
-for /f "delims=" %%A in ('%searchlogcommand%') do (
-    for /f "skip=2 delims=" %%B in ('find /i ",%tcall%," "%%~A"') do (
-        set /a prevcount+=1
-        set pre_fileVal!prevcount!=%%~nA%%~xA
-        set pre_Val!prevcount!=%%~B
-        set PrevTrigger=True
-        set prev=[91;7m!prevcount! Contacts in History [Press H][0m
+if exist "*.hamlog" (
+    for /f "delims=" %%A in ('%searchlogcommand%') do (
+        for /f "skip=2 delims=" %%B in ('find /i ",%tcall%," "%%~A"') do (
+            set /a prevcount+=1
+            set pre_fileVal!prevcount!=%%~nA%%~xA
+            set pre_Val!prevcount!=%%~B
+            set PrevTrigger=True
+            set prev=[91;7m!prevcount! Contacts in History [Press H][0m
+        )
     )
 )
 rem previous lookups?
@@ -138,7 +161,7 @@ if not "%ctd%"=="" (
 )
 echo [90m-------------------------------------------------------------------------------------------------[0m
 echo  [32mF-Frequency/Mode C-Callsign D-Date T-Time S-RSTs R-RSTr A-AutoUTC @-name Q-QTH X-Contest DATA
-echo  N-Note Z-QRZ V-A599 ESC-Clear End-Exit %prevcall%                    PRESS H FOR HELP AND KEYBIND GUIDE[96m
+echo  N-Note Z-QRZ V-A599 ESC-Clear End-Exit %prevcall%                    PRESS \ FOR HELP AND KEYBIND GUIDE[96m
 :kbd
 call ..\kbd.exe
 if %errorlevel%==97 (
@@ -163,6 +186,8 @@ if %errorlevel%==100 goto date
 if %errorlevel%==54 goto date
 if %errorlevel%==116 goto time
 if %errorlevel%==55 goto time
+if %errorlevel%==66 goto flrig
+if %errorlevel%==112 goto Power
 if %errorlevel%==115 goto rsts
 if %errorlevel%==119 goto tcallw
 if %errorlevel%==101 goto tcalle
@@ -206,7 +231,7 @@ if %errorlevel%==62 goto setgridsquare
 if %errorlevel%==63 goto setop
 if %errorlevel%==64 goto license
 if %errorlevel%==65 goto MoreSettings
-if %errorlevel%==104 goto help
+if %errorlevel%==92 goto help
 if %errorlevel%==79 cd ..&exit /b & exit /b
 goto kbd
 
@@ -216,6 +241,11 @@ echo.
 type ..\help.srlog.txt | more
 echo.
 pause
+goto mainmenu
+
+:power
+echo Enter power in Watts (Example: 20)
+set /p power=">"
 goto mainmenu
 
 :exportlogs
@@ -228,6 +258,86 @@ echo.
 choice /c 1x
 if %errorlevel%==1 goto adifexport
 if %errorlevel%==3 goto mainmenu
+
+:flrig
+cls
+if "%flrig%"=="1" goto flrigon
+echo [91mFLRig mode is off.[0m
+echo.
+echo Enabling FLRig will automatically pull the following info from FLRig:
+echo.
+echo - [92mFrequency[0m
+echo - [92mMode[0m
+echo - [92mPower[0m
+echo.
+echo Would you like to enable FLRig mode?
+choice
+if %errorlevel%==1 goto setupFLRig
+goto mainmenu
+
+:setupFLRig
+cls
+echo Power up your radio and make sure FLRig is running with your radio configured.
+pause
+set FLRig=1
+cls
+echo [92mEnable FLRig Frequency pull?[0m
+for /f "tokens=*" %%A in ('%rigctlcmd% get_freq') do (set rigfreq=%%~A)
+for /f %%n in ('cscript //nologo ..\eval.vbs "%rigfreq%/1000000"') do (set res=%%n)
+echo Example: %res% MHz
+set FLRigFreq=0
+choice
+if %errorlevel%==1 set FLRigFreq=1
+echo [92mEnable Mode pull?[0m
+for /f "tokens=*" %%A in ('%rigctlcmd% get_mode') do (
+    set rigmode=%%~A
+    goto breakgetmode1
+)
+:breakgetmode1
+echo Example: %rigmode%
+set FLRigMode=0
+choice
+if %errorlevel%==1 set FLRigMode=1
+echo [92mEnable Power Pull?[0m
+for /f "Tokens=*" %%A in ('%rigctlcmd% get_level RFPOWER') do (set rigpow=%%~A)
+for /f %%n in ('cscript //nologo ..\eval.vbs "%rigpow%*100"') do (set res=%%n)
+echo Example: %res% Watts
+set FLRigWatts=0
+choice
+if %errorlevel%==1 set FLRigWatts=1
+call :savesettings
+goto mainmenu
+
+:flrigon
+cls
+echo [92mFLRig mode is on.[0m
+echo.
+echo SRLog is automatically pulling data from FLRig:[93m
+echo.
+if "%FLRigFreq%"=="1" (
+    echo Frequency: On
+) ELSE (
+    echo Frequency: Off
+)
+if "%FLRigMode%"=="1" (
+    echo Mode: On
+) ELSE (
+    echo Mode: Off
+)
+if "%FLRigWatts%"=="1" (
+    echo Power: On
+) ELSE (
+    echo Power: Off
+)
+echo.[0m
+echo 1] Disable FLRig Mode
+echo 2] Configure FLRig Mode
+echo X] Exit
+choice /c 12x
+if %errorlevel%==1 set flrig=0
+if %errorlevel%==2 goto setupFLRig
+goto mainmenu
+
 
 
 
@@ -243,7 +353,7 @@ echo ADIF Export for SRLogger by W1BTR>"%adife%"
 (echo ^<PROGRAMID:3^>FLE)>>"%adife%"
 (echo ^<ADIF_VER:5^>3.1.0)>>"%adife%"
 (echo ^<EOH^>)>>"%adife%"
-for /f "usebackq tokens=1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16 delims=," %%A in ("%logfile%") do (
+for /f "usebackq tokens=1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18 delims=," %%A in ("%logfile%") do (
     set UniqueID=%%~A
     set pcall=%%~B
     call :getlen2 pcall pcall_len
@@ -272,13 +382,16 @@ for /f "usebackq tokens=1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16 delims=," %%A in 
     set pstate=%%~O
     call :getlen2 pstate pstate_len
     set pclass=%%~P
-    call :getlen2 pstate pclass_len
+    call :getlen2 pclass pclass_len
+    set ppower=%%~Q
+    call :getlen2 ppower ppower_len
     set pextra=
     if not "!psatt!"=="N" set pextra= ^<PROP_MODE:3^>SAT
     if not "!pnote!"=="NONE" set pextra=!pextra! ^<COMMENT:!pnote_len!^>!pnote!
     if not "!pserl!"=="NONE" set pextra=!pextra! ^<SRX:!pserl_len!^>!pserl!
     if not "!pstate!"=="NONE" set pextra=!pextra! ^<STATE:!pstate_len!^>!pstate!
     if not "!pclass!"=="NONE" set pextra=!pextra! ^<CLASS:!pclass_len!^>!pclass!
+    if not "!ppower!"=="NONE" set pextra=!pextra! ^<TX_PWR:!ppower_len!^>!ppower!
     echo ^<STATION_CALLSIGN:!calllength!^>%callsign% ^<CALL:!pcall_len!^>!pcall! ^<QSO_DATE:8^>!pdate! ^<TIME_ON:4^>!ptime! ^<BAND:!pband_len!^>!pband! ^<MODE:!pmode_len!^>!pmode! ^<FREQ:!pfreq_len!^>!pfreq! ^<RST_SENT:!prsts_len!^>!prsts! ^<RST_RCVD:!prstr_len!^>!prstr! ^<MY_GRIDSQUARE:!gs_len!^>%gridsquare% ^<MY_NAME:%op_len%^>%op%!pextra! ^<EOR^>
     (
         echo ^<STATION_CALLSIGN:!calllength!^>%callsign% ^<CALL:!pcall_len!^>!pcall! ^<QSO_DATE:8^>!pdate! ^<TIME_ON:4^>!ptime! ^<BAND:!pband_len!^>!pband! ^<MODE:!pmode_len!^>!pmode! ^<FREQ:!pfreq_len!^>!pfreq! ^<RST_SENT:!prsts_len!^>!prsts! ^<RST_RCVD:!prstr_len!^>!prstr! ^<MY_GRIDSQUARE:!gs_len!^>%gridsquare% ^<MY_NAME:%op_len%^>%op%!pextra! ^<EOR^>
@@ -323,11 +436,11 @@ if %skipval% GEQ 1 (
 echo  [92mF1[0m-Search Logs [92mF2[0m-Export
 
 echo [90m-----------------------------------------------------------------------------------------------------[0m
-for /f "%skip%usebackq tokens=1,2,3,4,5,6,7,8,9,10,11,12,13,14 delims=," %%A in ("%Logfile: =%") do (
+for /f "%skip%usebackq tokens=1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18 delims=," %%A in ("%Logfile: =%") do (
     set /a DispNum+=1
     set PrintDispNum=     #!DispNum!
     set /a PageTrack+=1
-    set "pre_val!DispNum!=%%~A,%%~B,%%~C,%%~D,%%~E,%%~F,%%~G,%%~H,%%~I,%%~J,%%~K,%%~L,%%~M,%%~N"
+    set "pre_val!DispNum!=%%~A,%%~B,%%~C,%%~D,%%~E,%%~F,%%~G,%%~H,%%~I,%%~J,%%~K,%%~L,%%~M,%%~N,%%~O,%%~P,%%~Q"
     set displaycallsign=             %%~B
     set disBand=      %%~E
     set disFreq=        %%~F
@@ -471,11 +584,11 @@ if %skipval% GEQ 1 (
 set "skip=skip=!searchskipval! "
 echo    [96mSEARCH MODE Results for "%searchstring%" in "%logfile%"
 echo [90m-----------------------------------------------------------------------------------------------------[0m
-for /f "%skip% tokens=1,2,3,4,5,6,7,8,9,10,11,12,13,14 delims=," %%A in ('find /i "%searchstring:"=%" "%Logfile: =%"') do (
+for /f "%skip% tokens=1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18 delims=," %%A in ('find /i "%searchstring:"=%" "%Logfile: =%"') do (
     set /a DispNum+=1
     set PrintDispNum=     #!DispNum!
     set /a PageTrack+=1
-    set "pre_val!DispNum!=%%~A,%%~B,%%~C,%%~D,%%~E,%%~F,%%~G,%%~H,%%~I,%%~J,%%~K,%%~L,%%~M,%%~N"
+    set "pre_val!DispNum!=%%~A,%%~B,%%~C,%%~D,%%~E,%%~F,%%~G,%%~H,%%~I,%%~J,%%~K,%%~L,%%~M,%%~N,%%~O,%%~P,%%~Q"
     set displaycallsign=             %%~B
     set disBand=      %%~E
     set disFreq=        %%~F
@@ -595,12 +708,12 @@ set "skip=skip=!searchskipval! "
 echo    [96mSEARCH MODE: Search Results for "%searchstring%" in All Logs
 echo [90m-----------------------------------------------------------------------------------------------------[0m
 for /f "usebackq tokens=1 delims=" %%Y in ("%searchlist%") do (
-    for /f "%skip% tokens=1,2,3,4,5,6,7,8,9,10,11,12,13,14 delims=," %%A in ('find /i "%searchstring:"=%" "%%~Y"') do (
+    for /f "%skip% tokens=1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18 delims=," %%A in ('find /i "%searchstring:"=%" "%%~Y"') do (
         set /a DispNum+=1
         set PrintDispNum=     #!DispNum!
         set logfilefor!DispNum!=%%~Y
         set /a PageTrack+=1
-        set "pre_val!DispNum!=%%~A,%%~B,%%~C,%%~D,%%~E,%%~F,%%~G,%%~H,%%~I,%%~J,%%~K,%%~L,%%~M,%%~N"
+        set "pre_val!DispNum!=%%~A,%%~B,%%~C,%%~D,%%~E,%%~F,%%~G,%%~H,%%~I,%%~J,%%~K,%%~L,%%~M,%%~N,%%~O,%%~P,%%~Q"
         set displaycallsign=             %%~B
         set disBand=      %%~E
         set disFreq=        %%~F
@@ -688,11 +801,12 @@ rem EOS2
 
 
 :pulldetails
-if / i "!pre_val%kbdentry%!"=="" goto vlogloop
+if /i "!pre_val%kbdentry%!"=="" goto vlogloop
 set change=False
-for /f "tokens=1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16 delims=," %%A in ('echo !pre_val%kbdentry%!') do (
+for /f "tokens=1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18 delims=," %%A in ('echo !pre_val%kbdentry%!') do (
     set UniqueID=%%~A
     set pcall=%%~B
+    echo %%~L]%%~M]%%~N]%%~O]%%~P
     set pname=%%~J
     set pdate=%%~C
     set ptime=%%~D
@@ -706,7 +820,8 @@ for /f "tokens=1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16 delims=," %%A in ('echo !p
     set pnote=%%~M
     set prig=%%~N
     set pstate=%%~O
-    set pclass=%%~p
+    set pclass=%%~P
+    set ppower=%%~Q
 )
 :pulldetailloop
 cls
@@ -723,13 +838,20 @@ echo 8    Satellite: !psatt!
 echo 9 CONTEST DATA: SERIAL: !pserl! - CLASS: !pclass! - STATE: !pstate!
 echo 0         NOTE: [7m!pnote![0m
 echo R          Rig: !prig!
+echo P        Power: !ppower!
 if not "!logfilefor%kbdentry%!"=="" echo            [90mLog File: !logfilefor%kbdentry%![0m
 echo [90m-----------------------------------------------------------------------------------------------------[0m
 if "%change%"=="True" echo [91mYou have unsaved changes Press S to save.[0m
 echo Press a key to change value. Press Z to Open !pcall!'s QRZ Page. Press X to close.
 )
-choice /c 1234567890RZXS
+choice /c 1234567890RZXSP
 if %errorlevel%==14 goto savepulled
+if %errorlevel%==15 (
+    echo Enter new power level [press enter to cancel]:
+    set /p ppower=">"
+    set change=True
+    goto pulldetailloop
+)
 if %errorlevel%==12 start https://www.qrz.com/db/!pcall! & goto pulldetails
 if %errorlevel%==13 (
     set kbdentry=
@@ -839,7 +961,7 @@ set newlogfile=%logfile:"=%.%random%%random%.temp
 echo Saving . . . (will take longer for larger logs)
 for /f "usebackq tokens=1 delims=" %%A in ("%logfile%") do (
     if "%%~A"=="!pre_val%kbdentry%!" (
-        echo %UniqueID%,%pcall%,%pDATE%,%pTIME%,%pband%,%pfreq%,%pmode%,%pRSTs%,%pRSTr%,%pname%,%psatt%,%pserl%,%pnote%,%prig%,%pstate: =%,%pclass: =%
+        echo %UniqueID%,%pcall%,%pDATE%,%pTIME%,%pband%,%pfreq%,%pmode%,%pRSTs%,%pRSTr%,%pname%,%psatt%,%pserl%,%pnote%,%prig%,%pstate: =%,%pclass: =%,%ppower%
         set saved=true
     ) ELSE (
     echo %%~A
@@ -855,6 +977,8 @@ if "%saved%"=="false" (
     pause
     goto pulldetailloop
 )
+del /f /q "%logfile%"
+ren "%newlogfile%" "%logfile%"
 echo [92mSave Success[0m
 set change=false
 echo.
@@ -869,7 +993,7 @@ echo [90m----------------------------------------------------------------------
 echo [90m         CALLSIGN  UTC  DATE  TIME    BAND FREQUENCY    MODE    S   R         NAME         RIG SPEC
 set DispNum=0
 set PageTrack=0
-for /f "tokens=1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16 delims=," %%A in ('set pre_val') do (
+for /f "tokens=1,2,3,4,5,6,7,8,9,10,11,12,13,14,17 delims=," %%A in ('set pre_val') do (
     set /a DispNum+=1
     set /a PageTrack+=1
     set displaycallsign=             %%~B
@@ -944,16 +1068,30 @@ goto mainmenu
 
 
 :savelog
+if "%flrig%"=="1" (
+    if "%flrigfreq%"=="1" (
+        for /f "tokens=*" %%A in ('%rigctlcmd% get_freq') do (set rigfreq=%%~A)
+        for /f %%n in ('cscript //nologo ..\eval.vbs "!rigfreq!/1000000"') do (set res=%%n)
+        if not "!freq!"=="!res!" (
+            echo [91mFrequency on radio [!res!] is different from set frequency: !freq![0m
+            echo [90mRemember, pressing [ESC] to clear the entry refreshes radio data.[0m
+            echo Update frequency to !res!?
+            choice
+            if %errorlevel%==1 set freq=!res!
+        )
+    )
+)
 if "%tcall%"=="" (
     echo  [91mNo Callsign Entered[0m
     pause
     goto mainmenu
 )
 if "%ctd%"=="" set ctd=NONE
+if "%power%"=="" set power=NONE
 if "%note%"=="" set note=NONE
 if "%lDate%"=="" call :setdatetime
 if "%lTime%"=="" call :setdatetime
-if "%freq%"=="" (
+if "!freq!"=="" (
     echo  [91mNo Frequency Entered[0m
     pause
     goto mainmenu
@@ -966,7 +1104,7 @@ if not exist "..\Ent.Count" (
 )
 set /p EntryNum=<"..\Ent.Count"
 set /a EntryNum=%EntryNum: =%+1
-(echo %EntryNum%,%tcall%,%lDATE%,%lTIME%,%band%,%freq%,%mode%,%RSTs%,%RSTr%,%top%,%satlog%,%tserial%,%note%,%rig%,%tstate%,%tclass%)>>"%LogFile%"
+(echo %EntryNum%,%tcall%,%lDATE%,%lTIME%,%band%,!freq!,%mode%,%RSTs%,%RSTr%,%top%,%satlog%,%tserial%,%note%,%rig%,%tstate%,%tclass%,%power%)>>"%LogFile%"
 (echo %EntryNum%)>"..\Ent.Count"
 goto clear
 
@@ -990,6 +1128,24 @@ set tsquare=
 set tserial=NONE
 set tstate=NONE
 set tclass=NONE
+if "%flrig%"=="1" (
+    if "%flrigfreq%"=="1" (
+        for /f "tokens=*" %%A in ('%rigctlcmd% get_freq') do (set rigfreq=%%~A)
+        for /f %%n in ('cscript //nologo ..\eval.vbs "!rigfreq!/1000000"') do (set res=%%n)
+        set freq=!res!
+    )
+    if "%flrigmode%"=="1" (
+        set num=0
+        for /f "tokens=*" %%A in ('%rigctlcmd% get_mode') do (
+            set /a num+=1
+            if !num!==1 set mode=%%~A
+        )
+    )
+    if "%flrigfreq%"=="1" (
+        for /f "Tokens=*" %%A in ('%rigctlcmd% get_level RFPOWER') do (set rigpow=%%~A)
+        for /f %%n in ('cscript //nologo ..\eval.vbs "!rigpow!*100"') do (set power=%%n)
+    )
+)
 call :setdatetime
 goto mainmenu
 
@@ -1358,8 +1514,19 @@ call :savesettings
 goto mainmenu
 
 :freqmode
-echo Enter Frequency in MHz (ie: 14.225) or press Enter for %freq%:
+echo Enter Frequency in MHz (ie: 14.225), F for FLRig, or press Enter for %freq%:
 set /p freq=">"
+if /i "%freq%"=="f" (
+        for /f "tokens=*" %%A in ('%rigctlcmd% get_freq') do (set rigfreq=%%~A)
+        for /f %%n in ('cscript //nologo ..\eval.vbs "!rigfreq!/1000000"') do (set res=%%n)
+        set freq=!res!
+        for /f "tokens=*" %%A in ('%rigctlcmd% get_mode') do (
+            set /a num+=1
+            if !num!==1 set mode=%%~A
+        )
+        call :savesettings
+        goto mainmenu
+    )
 echo Enter Mode or press Enter for %mode%:
 set /p mode=">"
 for /f "tokens=1,2,3,4 delims=." %%A in ('echo %freq%') do (
@@ -1580,7 +1747,7 @@ if !contacts! GTR 11 (
 if !contacts! GTR 11 (
     echo [92m                                    10 Most Recent Contacts [+!logskip! not shown]
     echo [90m      CALLSIGN  UTC  DATE  TIME    BAND FREQUENCY    MODE    S   R         NAME         RIG SPEC
-    for /f "skip=%logskip% usebackq tokens=1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16 delims=," %%A in ("%Logfile: =%") do (
+    for /f "skip=%logskip% usebackq tokens=1,2,3,4,5,6,7,8,9,10,11,12,13,14,17,18 delims=," %%A in ("%Logfile: =%") do (
         set displaycallsign=             %%~B
         set disBand=      %%~E
         set disFreq=        %%~F
@@ -1620,7 +1787,7 @@ if !contacts! GTR 11 (
 ) ELSE (
     echo [92m                                     Most Recent Contacts
     echo [90m      CALLSIGN  UTC  DATE  TIME    BAND FREQUENCY    MODE    S   R         NAME         RIG SPEC
-    for /f "usebackq tokens=1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16 delims=," %%A in ("%Logfile: =%") do (
+    for /f "usebackq tokens=1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18 delims=," %%A in ("%Logfile: =%") do (
         set displaycallsign=             %%~B
         set disBand=      %%~E
         set disFreq=        %%~F
@@ -1677,6 +1844,7 @@ echo set "DefaultMode=!DefaultMode!">>%settingslocation%
 echo set "LogFile=!LogFile!">>%settingslocation%
 echo set "op=!op!">>%settingslocation%
 echo set "freq=!freq!">>%settingslocation%
+echo set "power=!power!">>%settingslocation%
 echo set "license=!license!">>%settingslocation%
 echo set "mode=!mode!">>%settingslocation%
 echo set "Sattelite=!Satellite!">>%settingslocation%
@@ -1685,6 +1853,10 @@ echo set "rig=!rig!">>%settingslocation%
 echo set "searchlogcommand=!searchlogcommand!">>%settingslocation%
 echo set "logsearchstat=!logsearchstat!">>%settingslocation%
 echo set "query=%query%">>%settingslocation%
+echo set "flrig=%flrig%">>%settingslocation%
+echo set "FLRigFreq=!FLRigFreq!">>%settingslocation%
+echo set "FLRigMode=!FLRigMode!">>%settingslocation%
+echo set "FLRigWatts=!FLRigWatts!">>%settingslocation%
 exit /b
 
 :getlength
