@@ -147,7 +147,7 @@ if "%tstat%"=="E" echo                      [91mLicense Expired[0m
 if "%tstat%"=="A" echo                      [92mLicense Active[0m
 if "%tstat%"=="T" echo                      [101;30mLICENSE TERMINATED[0m
 )                        
-if "%tname%"=="NONE" (
+if "%top%"=="NONE" (
     echo  2 O             Name:
 ) ELSE (
     echo  2 O             Name: %top%
@@ -1426,7 +1426,8 @@ set /p tcall=">"
 if /i "%tcall%"=="-x" set tcall=%oldcall%&goto mainmenu
 :canceltcall
 if not %query%==TRUE (
-    set tname=NONE
+    set top=NONE
+    pause
     goto skipquery
 )
 call :CallsignLookup
@@ -1467,7 +1468,11 @@ goto mainmenu
 
 
 :CallsignLookup
-for /f "tokens=* delims=" %%A in ('curl http://api.hamdb.org/v1/!tcall!/csv/SRCOM -s') do (set "hamdb=%%~A")
+for /f "tokens=1,2 delims=/" %%A in ('echo !tcall!') do (
+    set hamdbcall=%%~A
+    set leftover=%%~B
+)
+for /f "tokens=* delims=" %%A in ('curl http://api.hamdb.org/v1/!hamdbcall!/csv/SRCOM -s') do (set "hamdb=%%~A")
 set "hamdb=%hamdb:,=,$%"
 for /f "tokens=1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18* delims=$" %%A in ('echo %hamdb%') do (
     set tcallresult=%%~A
@@ -1504,9 +1509,14 @@ set TZIP=%TZIP:$=%
 set TCountry=%TCountry:$=%
 set "top=%TFName: =%%TMName%%TLName%"
 set "top=%top:~,-1%"
+set "top=%top:  = %"
 set "QTH=%TStreet%%Tcity%%TST% %tCountry%"
 set "tsquare=%tsquare: =%"
-set tcall=%tcallresult: =%
+if "!leftover!"=="" (
+    set tcall=%tcallresult: =%
+) ELSE (
+    set tcall=%tcallresult: =%/!leftover!
+)
 exit /b
 
 :license
