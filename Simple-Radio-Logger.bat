@@ -2,7 +2,7 @@
 mode con:cols=97 lines=44
 setlocal EnableDelayedExpansion
 title SRLog - Simple Radio Logger by W1BTR
-rem version 2.1.beta
+rem version 3.0.beta
 cls
 if not exist kbd.exe (
     echo [91mERROR: [97mSRLogger depends on KBD.exe for navigation.
