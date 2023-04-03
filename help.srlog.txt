@@ -14,6 +14,7 @@ functionality in mind. SRLog is open source and allows the following logging:
 - Satellite Contact Support
 - Automatic hamdb pulling for names and QTH (toggleable)
 - Automatic UTC Time
+- Automatic Frequency, Mode, and Power pulling from FLRIG
 - Auto-Filled RST reports
 - Search current and previous log files
 - Check for duplicate contacts in the current and previous logs
@@ -21,6 +22,7 @@ functionality in mind. SRLog is open source and allows the following logging:
 - Automatically informs the user what their voice range is for their license
 - Can be run over SSH
 - One Keypress QRZ page opening
+- Windows Terminal Support
 
 SRLog does not use the mouse at all, and is designed to be rapidly navigated with
 the keyboard. It has an easy no-query mode for offline / quicker use.
