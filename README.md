@@ -8,6 +8,9 @@
     Simple Radio Logger  |___/ 
 ```
     
+SRLog in the Windows Terminal: **[NEW!]**
+![Terminal](https://i.imgur.com/ecU6AXF.png)
+SRLog Default CMD Mode:
 ![jpeiybH](https://user-images.githubusercontent.com/32961763/190240772-12fbe2f0-c832-40d4-9c80-f4f1fbdbfc6f.png)
 
 ## NOW WITH AUTOMATIC FREQUENCY, MODE, AND POWER FROM FLRIG!
