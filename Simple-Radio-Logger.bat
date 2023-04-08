@@ -1,6 +1,7 @@
 @echo off
 mode con:cols=97 lines=44
 setlocal EnableDelayedExpansion
+:reset
 title SRLog - Simple Radio Logger by W1BTR
 rem version 4.0.beta
 cls
@@ -25,10 +26,12 @@ set FlrigNow=1
 set Logfile=001.hamlog
 set RSTD=59
 set TerminalMode=FALSE
+set startedflrig=FALSE
 set Freq=14.2520
 set countrysearch=TRUE
 set statesearch=TRUE
 set Power=100
+set flriglaunch=FALSE
 set rigmulti=100
 set logsearchstat=Search All Logs in Log Folder
 set searchlogcommand=dir /b /s *.hamlog
@@ -84,6 +87,21 @@ if "%license%"=="" (
     if !errorlevel!==10 set license=E
     call :savesettings
 )
+if "%flriglaunch%"=="TRUE" (
+    if exist "%flrigpath%" (
+        tasklist | find /i "flrig.exe" >nul 2>nul
+        if !errorlevel!==0 goto skiplaunchflrig
+        echo Launching FLRig . . .
+        set startedflrig=TRUE
+        start "" "%flrigpath%"
+        timeout /t 3
+    ) ELSE (
+        echo ERROR:
+        echo Could not find "%flrigpath%"
+        echo Failed to launch FLRig.
+        pause
+    )
+)
 if "%FLRig%"=="1" (
     %rigctlcmd% get_freq >nul 2>rigctlerror
     find /i "error" "rigctlerror" 2>nul >nul
@@ -91,6 +109,7 @@ if "%FLRig%"=="1" (
     del /f /q rigctlerror
 )
 call :setdatetime
+:skiplaunchflrig
 goto clear
 
 :ErrorFLRig
@@ -98,9 +117,15 @@ cls
 echo [91mFLRig Error[90m
 type rigctlerror
 echo.
-echo [0mLaunch and configure FLRig and restart SRLog
-echo or press any key to disable FLRig
-pause
+echo [0mMake sure FLRig is launched and configured
+echo.
+echo 1] Retry
+echo 2] Disable FLRig
+choice /c 12
+if %errorlevel%==1 (
+    cd ..
+    goto reset
+)
 set flrig=0
 set flrignow=0
 call :savesettings
@@ -296,7 +321,50 @@ goto mainmenu
 
 :setupFLRig
 cls
-echo Power up your radio and make sure FLRig is running with your radio configured.
+:flriglaunch
+echo.
+echo [92mWould you like flrig to automatically launch on startup if it is not running?[0m
+choice
+if %errorlevel%==2 (
+    set flriglaunch=FALSE
+    goto noflriglaunch 
+)
+set flrigpath=
+dir /b "C:\Program Files (x86)\flrig-*" >nul 2>nul
+if %errorlevel%==0 for /f "tokens=*" %%A in ('dir /b "C:\Program Files (x86)\flrig-*"') do set flrigpath=C:\Program Files (x86)\%%~A\flrig.exe
+dir /b "C:\Program Files\flrig-*" >nul 2>nul
+if %errorlevel%==0 for /f "tokens=*" %%A in ('dir /b "C:\Program Files\flrig-*"') do set flrigpath=C:\Program Files\%%~A\flrig.exe
+if not "%flrigpath%"=="" echo [92mUse %flrigpath%?[0m
+if not "%flrigpath%"=="" (
+    choice
+    if %errorlevel%==1 (
+        set flriglaunch=TRUE
+        goto skipmanualflrig
+    )
+)
+echo Enter path to flrig (or drag and drop exe into this window and press enter):
+echo [90mEnter -X to cancel[0m
+set /p flrigpath=">"
+set flrigpath=%flrigpath:"=%"
+if /i "%flrig:"=%"=="-x" goto flriglaunch
+if not exist "%flrigpath%" echo (
+    File not found.
+    pause
+    set flrigpath=
+    set flriglaunch=FALSE
+    goto flriglaunch
+)
+set flrig=TRUE
+:skipmanualflrig
+tasklist | find /i "flrig.exe" >nul 2>nul
+if %errorlevel%==0 (
+    echo FLRig is already running, so not launching now.
+) ELSE (
+    echo Launching FLrig now . . .
+    start "" "%flrigpath%"
+)
+:noflriglaunch
+echo Power up your radio and make sure FLRig is configured for your radio.
 pause
 %rigctlcmd% get_freq >nul 2>rigctlerror
 find /i "error" "rigctlerror"
@@ -357,8 +425,12 @@ echo 1] Disable FLRig Mode
 echo 2] Configure FLRig Mode
 echo X] Exit
 choice /c 12x
-if %errorlevel%==1 set flrig=0
+if %errorlevel%==1 (
+    set flrig=0
+    set flriglaunch=FALSE
+)
 if %errorlevel%==2 goto setupFLRig
+call :savesettings
 goto mainmenu
 
 
@@ -2211,10 +2283,16 @@ echo set "rigmulti=!rigmulti!">>%settingslocation%
 echo set "countrysearch=!countrysearch!">>%settingslocation%
 echo set "statesearch=!statesearch!">>%settingslocation%
 echo set "contactsearch=!contactsearch!">>%settingslocation%
+echo set "flriglaunch=!flriglaunch!">>%settingslocation%
+echo set "flrigpath=!flrigpath!">>%settingslocation%
 exit /b
 
 :end
 cd ..
+if "%startedflrig%"=="TRUE" (
+    taskkill /im "flrig.exe" >nul 2>nul
+    taskkill /im "flrig.exe" >nul 2>nul
+)
 exit
 
 :getlength
