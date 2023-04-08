@@ -3,7 +3,7 @@
   ____  ____  _     By W1BTR             
  / ___||  _ \| |    ___   __ _ 
  \___ \| |_) | |   / _ \ / _` |
-  ___) |  _ <| |__| (_) | (_| |           Beta Version 3.0 Public Release
+  ___) |  _ <| |__| (_) | (_| |           Beta Version 4.0 Public Release
  |____/|_| \_\_____\___/ \__, |
     Simple Radio Logger  |___/ 
 ```
@@ -25,10 +25,12 @@ functionality in mind. SRLog is open source and allows the following logging:
 - Contest support, including Field Day
 - Sattellite Contact Support
 - Automatic hamdb pulling for names and QTH (toggleable)
+- Automatically detects new states and countries (toggleable)
 - Automatic UTC Time
 - Auto-Filled RST reports
 - Search current and previous log files
-- Check for duplicate contacts in the current and previous logs
+- Recover Deleted Log Entries
+- Check for duplicate contacts in the current and previous logs (toggleable)
 - Export to ADIF for easy integration with your favorite logging service
 - Automatically informs the user what their voice range is for their license
 - Can be run over SSH
