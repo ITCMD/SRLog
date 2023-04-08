@@ -2,7 +2,7 @@
 mode con:cols=97 lines=44
 setlocal EnableDelayedExpansion
 title SRLog - Simple Radio Logger by W1BTR
-rem version 3.0.beta
+rem version 4.0.beta
 cls
 if not exist kbd.exe (
     echo [91mERROR: [97mSRLogger depends on KBD.exe for navigation.
@@ -26,6 +26,8 @@ set Logfile=001.hamlog
 set RSTD=59
 set TerminalMode=FALSE
 set Freq=14.2520
+set countrysearch=TRUE
+set statesearch=TRUE
 set Power=100
 set rigmulti=100
 set logsearchstat=Search All Logs in Log Folder
@@ -35,6 +37,9 @@ set tserial=NONE
 set tstate=NONE
 set tclass=NONE
 set satlog=N
+set contactsearch=TRUE
+set countrysearch=TRUE
+set statesearch=TRUE
 rem setup
 if exist ..\srlogSettings.cmd call ..\srlogsettings.cmd
 if "%satlog%"=="Y" (
@@ -128,13 +133,15 @@ set PrevTrigger=False
 set prev=
 rem dir /b /s *.hamlog
 if exist "*.hamlog" (
-    for /f "delims=" %%A in ('%searchlogcommand%') do (
-        for /f "skip=2 delims=" %%B in ('find /i ",%tcall%," "%%~A"') do (
-            set /a prevcount+=1
-            set pre_fileVal!prevcount!=%%~nA%%~xA
-            set pre_Val!prevcount!=%%~B
-            set PrevTrigger=True
-            set prev=[91;7m!prevcount! Contacts in History [Press H][0m
+    if "%contactsearch%"=="TRUE" (
+        for /f "delims=" %%A in ('%searchlogcommand%') do (
+            for /f "skip=2 delims=" %%B in ('find /i ",%tcall%," "%%~A"') do (
+                set /a prevcount+=1
+                set pre_fileVal!prevcount!=%%~nA%%~xA
+                set pre_Val!prevcount!=%%~B
+                set PrevTrigger=True
+                set prev=[91;7m!prevcount! Contacts in History [Press H][0m
+            )
         )
     )
 )
@@ -157,9 +164,9 @@ if "%top%"=="NONE" (
     echo  2 O             Name: %top%
 ) 
 if "%tsquare%"=="" (
-    echo  3 Q              QTH: %qth%
+    echo  3 Q              QTH: %qthmsg%
 ) ELSE (
-    echo  3 Q              QTH: %qth% [36m[%tsquare%][0m
+    echo  3 Q              QTH: %qthmsg% [36m[%tsquare%][0m
 )
 echo  4 S         RST Sent: %RSTs%
 echo  5 R         RST Recv: %RSTr%
@@ -512,6 +519,7 @@ call ..\kbd.exe
 if %errorlevel%==115 goto search
 if %errorlevel%==59 goto search
 if %errorlevel%==27 goto mainmenu
+if %errorlevel%==120 goto mainmenu
 if %errorlevel%==103 (
     set|more
     pause
@@ -650,7 +658,7 @@ for /f "%skip% tokens=1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18 delims=," %%A
 echo [90m Page !pageNum! of !PageCount! pages [Use Arrow Keys to Change] Press [X] to Close Search %skip%
 echo [90m-----------------------------------------------------------------------------------------------------[0m
 echo.
-echo Enter Entry # to view: [90m[Esc] to Exit[0m
+echo Enter Entry # to view: [90m[Esc] or X to Exit[0m
 echo|set /p=">%kbdEntry%"
 call ..\kbd.exe
 if %errorlevel%==120 goto viewlogs
@@ -949,10 +957,23 @@ goto mainmenu
 :deletepulled
 cls
 echo Deleteing QSO with !pcall! - unique ID !UniqueID!...
+findstr /i "!UniqueID!,!pcall!" "%LogFile%">>SRLOG.Log.Trashbin
 findstr /V /i "!UniqueID!,!pcall!" "%LogFile%">>"%LogFile%.new.temp"
 ren "%logfile%" "%logfile%.old"
+if not %errorlevel%==0 (
+    echo Error: Failed to create median file.
+    pause
+    goto pulldetails
+)
 ren "%LogFile%.new.temp" "%logfile%"
-echo Completed.
+if %errorlevel%==0 (
+    del /f /q "%logfile%.old"
+) ELSE (
+    echo Error: Failed to finalize change.
+    pause
+    goto pulldetails
+)
+echo [92mCompleted. Deleted entries can be recovered in MORE SETTINGS.[0m
 pause
 goto viewlogs
 
@@ -1135,7 +1156,7 @@ if not exist "..\Ent.Count" (
 )
 set /p EntryNum=<"..\Ent.Count"
 set /a EntryNum=%EntryNum: =%+1
-(echo %EntryNum%,%tcall%,%lDATE%,%lTIME%,%band%,!freq!,%mode%,%RSTs%,%RSTr%,%top%,%satlog%,%tserial%,%note%,%rig%,%tstate%,%tclass%,%power%)>>"%LogFile%"
+(echo %EntryNum%,%tcall%,%lDATE%,%lTIME%,%band%,!freq!,%mode%,%RSTs%,%RSTr%,%top%,%satlog%,%tserial%,%note%,%rig%,%tstate%,%tclass%,%power%,%tcountry%,%TST%,)>>"%LogFile%"
 (echo %EntryNum%)>"..\Ent.Count"
 goto clear
 
@@ -1153,6 +1174,8 @@ set top=
 set RSTs=%RSTD%
 set RSTr=%RSTD%
 set qth=
+set newqth=
+set qthmsg=
 set ctd=
 set note=
 set tsquare=
@@ -1251,8 +1274,152 @@ goto mainmenu
 
 :qth
 cls
-echo  Enter Other Station's QTH or Location
-set /p QTH=" >"
+echo.
+echo [96mQTH Editor[0m
+echo.
+echo QTH: %qthmsg%
+if "!newqth!"=="TRUE" (
+    echo [92;4mNEW COUNTRY OR STATE![0m
+)
+echo.
+echo 1] Country: %tcountry%
+echo 2] State: %TST%
+echo 3] City: %tcity%
+echo 4] Street: %tstreet%
+echo 5] Grid Square: %tsquare%
+echo [92mA] Auto
+echo [91mC] Clear[90m
+echo X] Cancel[0m
+echo.
+choice /c 12345ACX
+echo.
+if %errorlevel%==1 (
+    echo Enter Other Station's Country [-x cancel]:
+    set /p Ntc=">"
+    if /i "!ntc!"=="-x" goto qth
+    set tcountry=!ntc!
+)
+if %errorlevel%==2 (
+    echo Enter Other Station's State [-x cancel]:
+    set /p ntst=">"
+    if /i "!ntst!"=="-x" goto qth
+    set TST=!ntst!
+)
+if %errorlevel%==3 (
+    echo Enter Other Station's City [-x cancel]:
+    set /p ntct=">"
+    if /i "!ntct!"=="-x" goto qth
+    set tcity=!ntct! 
+)
+if %errorlevel%==4 (
+    echo Enter Other Station's Street [-x cancel]:
+    set /p nts=">"
+    if /i "!nts!"=="-x" goto qth
+    set tstreet=!nts!
+)
+if %errorlevel%==5 (
+    echo Enter Other Station's Grid Square [-x cancel]:
+    set /p ntg=">"
+    if /i "!ntg!"=="-x" goto qth
+    set tsquare=!ntg!
+)
+if %errorlevel%==6 (
+    set preqthtcall=%tcall%
+    call :callsignlookup
+    set tcall=!preqthtcall!
+    goto qth 
+)
+if %errorlevel%==7 (
+    set tstate=
+    set tst=
+    set tcity=
+    set tsquare=
+    set tstreet=
+    set tcountry=
+    set qthmsg=
+    set newqth=
+    goto qth
+)
+if %errorlevel%==8 goto mainmenu
+set "QTH=%TStreet%%Tcity%%TST% %tCountry%"
+set newqth=FALSE
+set tcountrycode=
+set tstatecode=
+if "%countrysearch%"=="TRUE" (
+    if exist "*.hamlog" (
+        for /f "delims=" %%A in ('%searchlogcommand%') do (
+            find /i ",%TCountry%," "%%~A" >nul 2>nul
+            if not !errorlevel!==0 (
+                set tcountrycode=[93;4m
+                set newqth=TRUE
+            )
+        )
+    )
+)
+if "%statesearch%"=="TRUE" (
+    if exist "*.hamlog" (
+        for /f "delims=" %%A in ('%searchlogcommand%') do (
+            find /i ",%TST%," "%%~A" >nul 2>nul
+            if not !errorlevel!==0 (
+                set tstatecode=[93;4m
+                set newqth=TRUE
+            )
+        )
+    )
+)
+set "qthmsg=%TStreet%%Tcity%%tstatecode%%TST%[0m %tcountrycode%%tCountry%[0m"
+goto qth
+
+:SearchSettings
+cls
+echo [96mSEARCH SETTINGS
+echo.
+echo [0m1] Previous Contact Search: [92m%contactsearch%
+echo [0m2] Previous Country Search: [92m%countrysearch%
+echo [0m3] Previous State Search (USA): [92m%statesearch%
+echo [96mS[0m] Log Search Methood: [96m%logsearchstat%
+echo [90mX] Exit[0m
+echo.
+choice /c 123sx
+if %errorlevel%==5 goto moresettings
+if %errorlevel%==1 (
+   if "%contactSearch%"=="TRUE" (
+        set contactSearch=FALSE
+        goto SearchSettings
+    ) ELSE (
+        set contactSearch=TRUE
+        goto SearchSettings
+    )    
+)
+if %errorlevel%==2 (
+    if "%CountrySearch%"=="TRUE" (
+        set CountrySearch=FALSE
+        goto SearchSettings
+    ) ELSE (
+        set CountrySearch=TRUE
+        goto SearchSettings
+    )
+)
+if %errorlevel%==3 (
+    if "%StateSearch%"=="TRUE" (
+        set StateSearch=FALSE
+        goto SearchSettings
+    ) ELSE (
+        set StateSearch=TRUE
+        goto SearchSettings
+    )
+)
+if %errorlevel%==4 (
+    if "%logsearchstat%"=="Search only Current Log File" (
+        set logsearchstat=Search All Logs in Log Folder
+        set searchlogcommand=dir /b /s *.hamlog
+    ) ELSE (
+        set logsearchstat=Search only Current Log File
+        set searchlogcommand=dir /b /s "%logfile:"=%"
+    )
+    call :savesettings
+    goto searchsettings
+)
 goto mainmenu
 
 :MoreSettings
@@ -1263,14 +1430,15 @@ echo [0m1] RST Default: [92m%RSTD%
 echo [0m2] Export to ADIF
 echo [0m3] Current Rig: [92m%rig%
 echo [0m4] Log File: [92m%logfile%
-echo [0m5] Query Hamdb: [96m%query%
-echo [0m6] Previous Contact Search: [92m%logsearchstat%
+echo [0m5] Query Hamdb: [92m%query%
+echo [0m6] [92mSearch Settings
 echo [0m7] Windows Terminal Mode: [92m%TerminalMode%
 echo [0m8] FLRig Pull Frequency on Callsign Entry: [92m%FreqOften%
 echo [0m9] Pull Date and Time on Callsign Entry: [92m%datetimeoncall%
 echo [0;1mP[0m] FLRig Power Adjustment: [92m*!rigmulti!
+echo [0;1mR[0m] Recovery Mode [Recover Deleted Entries]
 echo [90mX] Exit[0m
-choice /c 123456789Px
+choice /c 123456789PRx
 if %errorlevel%==1 (
     if %RSTD%==599 (
         set RSTD=59
@@ -1290,17 +1458,7 @@ if %errorlevel%==5 (
     )
     goto moresettings
 )
-if %errorlevel%==6 (
-    if "%logsearchstat%"=="Search only Current Log File" (
-        set logsearchstat=Search All Logs in Log Folder
-        set searchlogcommand=dir /b /s *.hamlog
-    ) ELSE (
-        set logsearchstat=Search only Current Log File
-        set searchlogcommand=dir /b /s "%logfile:"=%"
-    )
-    call :savesettings
-    goto moresettings
-)
+if %errorlevel%==6 goto SearchSettings
 if %errorlevel%==7 (
     if "%TerminalMode%"=="TRUE" (
         set TerminalMode=FALSE
@@ -1329,8 +1487,41 @@ if %errorlevel%==9 (
     goto moresettings
 )
 if %errorlevel%==10 goto poweradjust
+if %errorlevel%==11 goto recoverdeleted
 call :savesettings
 goto mainmenu
+
+:recoverdeleted
+cls
+echo.
+echo RECOVERY MODE
+echo.
+if not exist SRLOG.Log.Trashbin (
+    echo Trash bin is empty.
+    pause
+    goto moresettings
+)
+type SRLOG.Log.Trashbin
+echo [96mTo recover an entry, enter the unique ID and callsign (the first two values)
+echo exactly how they appear in the list. For example: [4m761,W1GZ[0m
+echo [90mNote: Recovered entries will remain in the recovery list.[0m
+echo Enter -X to exit. Enter -E to empty the trash bin.
+echo.
+:recovermore
+set /p recovery=">"
+if /i "%recovery%"=="-x" goto moresettings
+if /i "%recovery%"=="-E" (
+    echo Empty trash. Are you sure?
+    choice
+    if %errorlevel%==2 goto recovermore
+    del /f /q SRLOG.Log.Trashbin
+    goto moresettings
+)
+for /f "tokens=1 skip=2 delims=" %%A in ('find /i "%recovery%" "SRLOG.Log.Trashbin"') do (
+    echo [92mRecovering: [0m%%~A
+    echo %%~A >>"%logfile:"=%"
+)
+goto recovermore
 
 :poweradjust
 cls
@@ -1498,15 +1689,17 @@ if /i "%tcall%"=="-x" set tcall=%oldcall%&goto mainmenu
 :canceltcall
 if not %query%==TRUE (
     set top=NONE
+    call :makeCaps tcall
     goto skipquery
 )
+
 call :CallsignLookup
 if "%tcall%"=="NOT_FOUND" gptp NoTcallFound
 :skipquery
 set rstr=%RSTD%
 set rsts=%RSTD%
 if "%datetimeoncall%"=="TRUE" call :setdatetime
-if %FreqOften%=="TRUE" (
+if "%FreqOften%"=="TRUE" (
     if "%flrig%"=="1" (
         if "%flrigfreq%"=="1" (
             for /f "tokens=*" %%A in ('%rigctlcmd% get_freq') do (set rigfreq=%%~A)
@@ -1520,12 +1713,13 @@ if %FreqOften%=="TRUE" (
                 if !num!==1 set mode=%%~A
             )
         )
-        if "%flrigfreq%"=="1" (
+        if "%FLRigWatts%"=="1" (
             for /f "Tokens=*" %%A in ('%rigctlcmd% get_level RFPOWER') do (set rigpow=%%~A)
-            for /f %%n in ('cscript //nologo ..\eval.vbs "!rigpow!*100"') do (set power=%%n)
+            for /f %%n in ('cscript //nologo ..\eval.vbs "!rigpow!*!rigmulti!"') do (set power=%%n)
         )
     )
 )
+
 goto mainmenu
 
 :NoTcallFound
@@ -1607,6 +1801,30 @@ set "top=%TFName: =%%TMName%%TLName%"
 set "top=%top:~,-1%"
 set "top=%top:  = %"
 set "QTH=%TStreet%%Tcity%%TST% %tCountry%"
+rem codehere
+set tcountrycode=
+set tstatecode=
+if "%countrysearch%"=="TRUE" (
+    if exist "*.hamlog" (
+        for /f "delims=" %%A in ('%searchlogcommand%') do (
+            find /i ",%TCountry%," "%%~A" >nul 2>nul
+            if not !errorlevel!==0 (
+                set tcountrycode=[93;4m
+            )
+        )
+    )
+)
+if "%statesearch%"=="TRUE" (
+    if exist "*.hamlog" (
+        for /f "delims=" %%A in ('%searchlogcommand%') do (
+            find /i ",%TST%," "%%~A" >nul 2>nul
+            if not !errorlevel!==0 (
+                set tstatecode=[93;4m
+            )
+        )
+    )
+)
+set "qthmsg=%TStreet%%Tcity%%tstatecode%%TST%[0m %tcountrycode%%tCountry%[0m"
 set "tsquare=%tsquare: =%"
 if "!leftover!"=="" (
     set tcall=%tcallresult: =%
@@ -1667,7 +1885,14 @@ rem call :modecolor
 call :savesettings
 goto mainmenu
 
-
+:makeCaps
+for %%a in ("a=A" "b=B" "c=C" "d=D" "e=E" "f=F" "g=G" "h=H" "i=I"
+        "j=J" "k=K" "l=L" "m=M" "n=N" "o=O" "p=P" "q=Q" "r=R"
+        "s=S" "t=T" "u=U" "v=V" "w=W" "x=X" "y=Y" "z=Z" "ä=Ä"
+        "ö=Ö" "ü=Ü") do (
+call set %~1=%%%~1:%%~a%%
+)
+EXIT /b
 
 :rangeband
 if "%freq%"=="" (
@@ -1983,6 +2208,9 @@ echo set "FreqOften=!FreqOften!">>%settingslocation%
 echo set "tcall=!tcall!">>%settingslocation%
 echo set "datetimeoncall=!datetimeoncall!">>%settingslocation%
 echo set "rigmulti=!rigmulti!">>%settingslocation%
+echo set "countrysearch=!countrysearch!">>%settingslocation%
+echo set "statesearch=!statesearch!">>%settingslocation%
+echo set "contactsearch=!contactsearch!">>%settingslocation%
 exit /b
 
 :end
