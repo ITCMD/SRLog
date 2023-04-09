@@ -3,7 +3,7 @@ mode con:cols=97 lines=44
 setlocal EnableDelayedExpansion
 :reset
 title SRLog - Simple Radio Logger by W1BTR
-rem version 4.0.beta
+rem version 5.0.beta
 cls
 if not exist kbd.exe (
     echo [91mERROR: [97mSRLogger depends on KBD.exe for navigation.
@@ -102,14 +102,45 @@ if "%flriglaunch%"=="TRUE" (
         pause
     )
 )
+:skiplaunchflrig
 if "%FLRig%"=="1" (
     %rigctlcmd% get_freq >nul 2>rigctlerror
     find /i "error" "rigctlerror" 2>nul >nul
     if !errorlevel!==0 goto ErrorFLRig
+    for /f %%i in ("rigctlerror") do set size=%%~zi
+
+    if "!size!"=="0" goto ErrorFLRigTimeout
     del /f /q rigctlerror
 )
 call :setdatetime
-:skiplaunchflrig
+goto clear
+
+
+:ErrorFLRigTimeout
+cls
+echo [91mFLRig Error[90m
+echo Connection to FLRig timed out (no response).
+echo.
+echo [0mMake sure FLRig is launched and configured
+echo.
+echo 1] Retry
+echo 2] Disable FLRig
+echo 3] Reboot FLRig
+choice /c 123
+if %errorlevel%==1 (
+    cd ..
+    goto reset
+)
+if %errorlevel%==3 (
+    taskkill /f /im flrig.exe 2>nul
+    taskkill /f /im flrig.exe 2>nul
+    taskkill /f /im flrig.exe 2>nul
+    cd ..
+    goto reset
+)
+set flrig=0
+set flrignow=0
+call :savesettings
 goto clear
 
 :ErrorFLRig
@@ -205,7 +236,7 @@ if not "%ctd%"=="" (
 )
 echo [90m-------------------------------------------------------------------------------------------------[0m
 echo  [32mF-Frequency/Mode C-Callsign D-Date T-Time S-RSTs R-RSTr A-AutoUTC @-name Q-QTH X-Contest DATA
-echo  N-Note Z-QRZ V-A599 ESC-Clear End-Exit %prevcall%                    PRESS \ FOR HELP AND KEYBIND GUIDE[96m
+echo  N-Note Z-QRZ V-A599 P-Power G-DebuG ESC-Clear End-Exit %prevcall%                    PRESS \ FOR HELP AND KEYBIND GUIDE[96m
 :kbd
 call ..\kbd.exe
 if %errorlevel%==97 (
@@ -230,7 +261,7 @@ if %errorlevel%==100 goto date
 if %errorlevel%==54 goto date
 if %errorlevel%==116 goto time
 if %errorlevel%==55 goto time
-if %errorlevel%==66 goto flrig
+if %errorlevel%==66 goto flrigmenu
 if %errorlevel%==112 goto Power
 if %errorlevel%==115 goto rsts
 if %errorlevel%==119 goto tcallw
@@ -303,31 +334,81 @@ choice /c 1x
 if %errorlevel%==1 goto adifexport
 if %errorlevel%==3 goto mainmenu
 
-:flrig
+
+:FLRigMenu
+call :savesettings
 cls
-if "%flrig%"=="1" goto flrigon
-echo [91mFLRig mode is off.[0m
+echo [96mFLRIG Menu[0m
 echo.
-echo Enabling FLRig will automatically pull the following info from FLRig:
-echo.
-echo - [92mFrequency[0m
-echo - [92mMode[0m
-echo - [92mPower[0m
-echo.
-echo Would you like to enable FLRig mode?
-choice
-if %errorlevel%==1 goto setupFLRig
+if "%flrig%"=="1" (
+    echo 1] FLRig: [96mEnabled[0m
+) ELSE (
+    echo 1] FLRig: [91mDisabled[0m
+)
+echo 2] FLRig Launch: [96m%flriglaunch%[0m
+if %FLRigFreq%==1 (
+    echo 3] Frequency Pull: [96mTRUE[0m
+) ELSE (
+    echo 3] Frequency Pull: [91mFALSE[0m
+)
+if %FLRigMode%==1 (
+    echo 4] Mode Pull: [96mTRUE[0m
+) ELSE (
+    echo 4] Mode Pull: [91mFALSE[0m
+)
+if %FLRigWatts%==1 (
+    echo 5] Power Pull: [96mTRUE[0m
+) ELSE (
+    echo 5] Power Pull: [91mFALSE[0m
+)
+echo 6] FLRig Power Adjustment: [92m*!rigmulti![0m
+echo X] Back
+choice /c 123456X
+if %errorlevel%==1 (
+    if %flrig%==1 (
+        set flrig=0
+    ) ELSE (
+        set flrig=1
+    )
+    goto flrigmenu
+)
+
+if %errorlevel%==2 goto flriglaunch
+if %errorlevel%==3 (
+    if %FLRigFreq%==1 (
+        set FLRigFreq=0
+    ) ELSE (
+        set FLRigFreq=1
+    )
+    goto flrigmenu   
+)
+if %errorlevel%==4 (
+    if %FLRigMode%==1 (
+        set FLRigMode=0
+    ) ELSE (
+        set FLRigMode=1
+    )
+    goto flrigmenu   
+)
+if %errorlevel%==5 (
+    if %FLRigWatts%==1 (
+        set FLRigWatts=0
+    ) ELSE (
+        set FLRigWatts=1
+    )
+    goto flrigmenu   
+)
+if %errorlevel%==6 goto poweradjust
 goto mainmenu
 
-:setupFLRig
-cls
+
 :flriglaunch
 echo.
 echo [92mWould you like flrig to automatically launch on startup if it is not running?[0m
 choice
 if %errorlevel%==2 (
     set flriglaunch=FALSE
-    goto noflriglaunch 
+    goto FLRigMenu
 )
 set flrigpath=
 dir /b "C:\Program Files (x86)\flrig-*" >nul 2>nul
@@ -354,7 +435,6 @@ if not exist "%flrigpath%" echo (
     set flriglaunch=FALSE
     goto flriglaunch
 )
-set flrig=TRUE
 :skipmanualflrig
 tasklist | find /i "flrig.exe" >nul 2>nul
 if %errorlevel%==0 (
@@ -363,78 +443,7 @@ if %errorlevel%==0 (
     echo Launching FLrig now . . .
     start "" "%flrigpath%"
 )
-:noflriglaunch
-echo Power up your radio and make sure FLRig is configured for your radio.
-pause
-%rigctlcmd% get_freq >nul 2>rigctlerror
-find /i "error" "rigctlerror"
-if !errorlevel!==0 goto ErrorFLRig
-del /f /q rigctlerror
-set FLRig=1
-cls
-echo [92mEnable FLRig Frequency pull?[0m
-for /f "tokens=*" %%A in ('%rigctlcmd% get_freq') do (set rigfreq=%%~A)
-for /f %%n in ('cscript //nologo ..\eval.vbs "%rigfreq%/1000000"') do (set res=%%n)
-echo Example: %res% MHz
-set FLRigFreq=0
-choice
-if %errorlevel%==1 set FLRigFreq=1
-echo [92mEnable Mode pull?[0m
-for /f "tokens=*" %%A in ('%rigctlcmd% get_mode') do (
-    set rigmode=%%~A
-    goto breakgetmode1
-)
-:breakgetmode1
-echo Example: %rigmode%
-set FLRigMode=0
-choice
-if %errorlevel%==1 set FLRigMode=1
-echo [92mEnable Power Pull?[0m
-for /f "Tokens=*" %%A in ('%rigctlcmd% get_level RFPOWER') do (set rigpow=%%~A)
-for /f %%n in ('cscript //nologo ..\eval.vbs "%rigpow%*100"') do (set res=%%n)
-echo Example: %res% Watts
-set FLRigWatts=0
-choice
-if %errorlevel%==1 set FLRigWatts=1
-call :savesettings
-goto mainmenu
-
-:flrigon
-cls
-echo [92mFLRig mode is on.[0m
-echo.
-echo SRLog is automatically pulling data from FLRig:[93m
-echo.
-if "%FLRigFreq%"=="1" (
-    echo Frequency: On
-) ELSE (
-    echo Frequency: Off
-)
-if "%FLRigMode%"=="1" (
-    echo Mode: On
-) ELSE (
-    echo Mode: Off
-)
-if "%FLRigWatts%"=="1" (
-    echo Power: On
-) ELSE (
-    echo Power: Off
-)
-echo.[0m
-echo 1] Disable FLRig Mode
-echo 2] Configure FLRig Mode
-echo X] Exit
-choice /c 12x
-if %errorlevel%==1 (
-    set flrig=0
-    set flriglaunch=FALSE
-)
-if %errorlevel%==2 goto setupFLRig
-call :savesettings
-goto mainmenu
-
-
-
+goto FLRigMenu
 
 :adifexport
 cls
@@ -1361,7 +1370,7 @@ echo 4] Street: %tstreet%
 echo 5] Grid Square: %tsquare%
 echo [92mA] Auto
 echo [91mC] Clear[90m
-echo X] Cancel[0m
+echo X] Back[0m
 echo.
 choice /c 12345ACX
 echo.
@@ -1507,7 +1516,6 @@ echo [0m6] [92mSearch Settings
 echo [0m7] Windows Terminal Mode: [92m%TerminalMode%
 echo [0m8] FLRig Pull Frequency on Callsign Entry: [92m%FreqOften%
 echo [0m9] Pull Date and Time on Callsign Entry: [92m%datetimeoncall%
-echo [0;1mP[0m] FLRig Power Adjustment: [92m*!rigmulti!
 echo [0;1mR[0m] Recovery Mode [Recover Deleted Entries]
 echo [90mX] Exit[0m
 choice /c 123456789PRx
@@ -1558,7 +1566,7 @@ if %errorlevel%==9 (
     call :savesettings
     goto moresettings
 )
-if %errorlevel%==10 goto poweradjust
+
 if %errorlevel%==11 goto recoverdeleted
 call :savesettings
 goto mainmenu
@@ -1611,8 +1619,7 @@ choice /c 123X
 if %errorlevel%==1 set rigmulti=10
 if %errorlevel%==2 set rigmulti=100
 if %errorlevel%==3 set rigmulti=1000
-call :savesettings
-goto moresettings
+goto flrigmenu
 
 :logfile
 cls
@@ -1758,6 +1765,7 @@ set /p tcall=">"
 :starttcall
 set prequerytcall=%tcall%
 if /i "%tcall%"=="-x" set tcall=%oldcall%&goto mainmenu
+if /i "%tcall%"=="" goto mainmenu
 :canceltcall
 if not %query%==TRUE (
     set top=NONE
