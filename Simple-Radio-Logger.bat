@@ -3,7 +3,7 @@ mode con:cols=97 lines=44
 setlocal EnableDelayedExpansion
 :reset
 title SRLog - Simple Radio Logger by W1BTR
-rem version 5.0.beta
+rem version 5.2.beta
 cls
 if not exist kbd.exe (
     echo [91mERROR: [97mSRLogger depends on KBD.exe for navigation.
@@ -236,7 +236,7 @@ if not "%ctd%"=="" (
 )
 echo [90m-------------------------------------------------------------------------------------------------[0m
 echo  [32mF-Frequency/Mode C-Callsign D-Date T-Time S-RSTs R-RSTr A-AutoUTC @-name Q-QTH X-Contest DATA
-echo  N-Note Z-QRZ V-A599 P-Power G-DebuG ESC-Clear End-Exit %prevcall%                    PRESS \ FOR HELP AND KEYBIND GUIDE[96m
+echo  N-Note Z-QRZ V-A599 P-Power G-DebuG ESC-Clear End-Exit     PRESS \ FOR HELP AND KEYBIND GUIDE[96m
 :kbd
 call ..\kbd.exe
 if %errorlevel%==97 (
@@ -1222,6 +1222,7 @@ if "%tcall%"=="" (
 if "%ctd%"=="" set ctd=NONE
 if "%power%"=="" set power=NONE
 if "%note%"=="" set note=NONE
+if "%tstate%"=="" set tstate=NONE
 if "%lDate%"=="" call :setdatetime
 if "%lTime%"=="" call :setdatetime
 if "!freq!"=="" (
@@ -1231,12 +1232,14 @@ if "!freq!"=="" (
 )
 if "%rstr%"=="" set rstr=%rstd%
 if "%rsts%"=="" set rsts=%rstd%
-rem CTN,Callsign,DATE,TIME,Band,Freq,Mode,RSTs,RSTr,Operator,Serial,Satellite,Note,rig,state,class
+rem CTN,Callsign,DATE,TIME,Band,Freq,Mode,RSTs,RSTr,Operator,Satellite,Serial,Note,rig,license,class,power
 if not exist "..\Ent.Count" (
     echo 1 >"..\Ent.Count"
 )
 set /p EntryNum=<"..\Ent.Count"
 set /a EntryNum=%EntryNum: =%+1
+echo %note%
+pause
 (echo %EntryNum%,%tcall%,%lDATE%,%lTIME%,%band%,!freq!,%mode%,%RSTs%,%RSTr%,%top%,%satlog%,%tserial%,%note%,%rig%,%tstate%,%tclass%,%power%,%tcountry%,%TST%,)>>"%LogFile%"
 (echo %EntryNum%)>"..\Ent.Count"
 goto clear
@@ -1411,7 +1414,6 @@ if %errorlevel%==6 (
     goto qth 
 )
 if %errorlevel%==7 (
-    set tstate=
     set tst=
     set tcity=
     set tsquare=
@@ -2173,7 +2175,7 @@ if !contacts! GTR !RecentGTR! (
 if !contacts! GTR !RecentGTR! (
     echo [92m                                    !RecentGTR! Most Recent Contacts [+!logskip! not shown]
     echo [90m      CALLSIGN  UTC  DATE  TIME    BAND FREQUENCY    MODE    S   R         NAME         RIG SPEC
-    for /f "skip=%logskip% usebackq tokens=1,2,3,4,5,6,7,8,9,10,11,12,13,14,17,18 delims=," %%A in ("%Logfile: =%") do (
+    for /f "skip=%logskip% usebackq tokens=1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18 delims=," %%A in ("%Logfile: =%") do (
         set displaycallsign=             %%~B
         set disBand=      %%~E
         set disFreq=        %%~F
