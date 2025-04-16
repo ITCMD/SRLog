@@ -235,7 +235,7 @@ if not "%ctd%"=="" (
     echo  9 X     Contest Data:
 )
 echo [90m-------------------------------------------------------------------------------------------------[0m
-echo  [32mF-Frequency/Mode C-Callsign D-Date T-Time S-RSTs R-RSTr A-AutoUTC @-name Q-QTH X-Contest DATA
+echo  [32mF-Frequency/Mode C-Callsign D-Date T-Time S-RSTs R-RSTr A-AutoUTC O-Name Q-QTH X-Contest DATA
 echo  N-Note Z-QRZ V-A599 P-Power G-DebuG ESC-Clear End-Exit     PRESS \ FOR HELP AND KEYBIND GUIDE[96m
 :kbd
 call ..\kbd.exe
